@@ -81,7 +81,7 @@ module reciever(input bclk_x8, rst, rx_data,
   reg write_reg = 0;
   always @ (posedge bclk_x8 or posedge rst) begin
 		if (rst) rx_output <= 10'd0;
-		else if (write_reg) rx_output[sample_counter] <= snap_shot[3];
+		else if (write_reg) rx_output[bit_counter] <= snap_shot[3];
 		else rx_output <= rx_output;
   end
   
