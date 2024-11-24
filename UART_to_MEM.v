@@ -49,67 +49,86 @@ output reg [7:0] value
   wire slow_clk;
   reg display;
   reg [1:0] display_value_index;
+  // clk_div #(.DIV(1000)) oneHz (.clk(clk), .slow_clk(slow_clk)); // For SIMULATION
   clk_div oneHz (.clk(clk), .slow_clk(slow_clk));
+  
   always @(posedge slow_clk or posedge rst) begin
     if (rst) begin display_value_index <= 0; read_A <= 0; end
 	 else if (display && display_value_index < 4) begin
 		read_A <= 1;
 		read_address_A <= display_value_index;
 		value <= data_A;
-		display_value_index <= display_value_index + 1;
+		display_value_index <= display_value_index + 2'd1;
 	  end
 	  else read_A <= 0;
   end
+  
   //===FSM===//
   parameter IDLE = 0, RECEIVING = 1,
 				STORE = 2, END = 3;
 				
-  reg [2:0] values_received_count;
+  //reg [2:0] values_received_count;
   reg [2:0] state, next_state;
   always @ (posedge clk or posedge rst) begin
-    if (rst) state <= IDLE;
-    else state <= next_state;
+    if (rst) begin 
+		state <= IDLE;
+		//values_received_count <= 0;
+	 end
+	 else state <= next_state;
   end
 
   // next state logic
   always @ (*) begin
     next_state = state;
     case (state)
-      IDLE: if (ready == 1) next_state = RECEIVING;
+      IDLE: if (rx_status == 1) next_state = RECEIVING;
       
-      RECEIVING: if (rx_status == 0) next_state = STORE;
+      RECEIVING: begin if (rx_status == 0) next_state = STORE; else next_state = RECEIVING; end
       // going to send when we receive all the 4 numbers, otherwise we go to IDLE to get the next input
-      STORE: begin if (values_received_count == 4) next_state = END; else next_state = IDLE; end
-      END: if (rst) next_state = IDLE;
+      STORE: begin if (values_received_count == 3) next_state = END; else next_state = IDLE; end
+      END: begin if (rst) next_state = IDLE; else next_state = END; end
       default: next_state = state;
     endcase
   end
   
-  always @ (posedge clk) begin //will change to * later
-	 write_A <= 0;
-	 display <= 0;
+  // values_received_count logic, before it was in the always block at line 102 but we seperate it to prevent undefined behaviour before.
+  reg [2:0] values_received_count = 3'd0;
+  reg inc_vrc = 1'b0;
+  reg rst_vrc = 1'b0;
+  always @ (posedge clk or posedge rst or posedge rst_vrc) begin
+	if (rst | rst_vrc) values_received_count <= 3'd0;
+	else if (inc_vrc) values_received_count <= values_received_count + 3'd1;
+	else values_received_count <= values_received_count;
+  end
+  
+  always @ (*) begin
+	 write_A = 1'b0;
+	 display = 1'b0;
+	 inc_vrc = 1'b0;
+	 rst_vrc = 1'b0;
+	 
     case(state)
       IDLE: begin
-			write_A <= 0;
+			write_A = 0;
       end
       
       RECEIVING: begin
-    		write_A <= 0;
+    		write_A = 0;
       end
       
       STORE: begin
-         write_A <= 1;
-         write_value_A <= temp_reg [8:1];
-         write_address_A <= values_received_count;
-			values_received_count <= values_received_count + 1;
+         write_A = 1'b1;
+         write_value_A = temp_reg [8:1];
+         write_address_A = values_received_count;
+			inc_vrc = 1'b1;
       end
       
       END: begin
-		   values_received_count <= 0;
-			display <= 1;
+		   rst_vrc = 1'b1;
+			display = 1'b1;
       end
       
-      default: 	 write_A <= 0;
+      default: write_A = 0;
     endcase
   end
   
