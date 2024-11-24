@@ -27,6 +27,6 @@ parameter DIV = 1;
 parameter cycles = 100_000_000/DIV; 
 always @ (posedge clk) begin 
 counter <= (counter < cycles - 1) ? counter + 1 : 0; 
-slow_clk <= (counter < cycles/2) ? 1 : 0; 
+slow_clk <= (counter < cycles/2) ? 1'b1 : 1'b0; 
 end 
 endmodule

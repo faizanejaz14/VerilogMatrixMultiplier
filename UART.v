@@ -50,8 +50,8 @@ module reciever(input bclk_x8, rst, rx_data,
   reg inc_bit_counter = 0; // for incrementing bit counter
   reg clear_buffer = 0;
   always @ (posedge bclk_x8 or posedge clear_buffer) begin
-    if (clear_buffer) bit_counter <= 0;
-    else if (inc_bit_counter) bit_counter <= bit_counter + 1;
+    if (clear_buffer) bit_counter <= 4'd0;
+    else if (inc_bit_counter) bit_counter <= bit_counter + 4'd1;
     else bit_counter <= bit_counter;
   end
   
@@ -59,22 +59,30 @@ module reciever(input bclk_x8, rst, rx_data,
   reg [3:0] sample_counter = 0;
   reg rst_sample_counter;
   always @ (posedge bclk_x8 or posedge rst_sample_counter) begin
-    if (rst_sample_counter) sample_counter <= 0;
-    else sample_counter <= sample_counter + 1;
+    if (rst_sample_counter) sample_counter <= 4'd0;
+    else sample_counter <= sample_counter + 4'd1;
   end
   
   // next state logic
   always @ (*) begin
     next_state = state;
     case (state)
-      START: if (rx_data == 0) next_state = SAMPLE;
+      START: begin if (rx_data == 0) next_state = SAMPLE; else next_state = START; end
       // we want to sample till the second last value, so we can store the next value in rx_register
-      SAMPLE: if (sample_counter == DATA_SIZE - 2) next_state = STORE;
+      SAMPLE: begin if (sample_counter == DATA_SIZE - 2) next_state = STORE; else next_state = SAMPLE; end
       // store needs 8 bits as input as we are also taking stop bit as input
       STORE: begin if(bit_counter == 10) next_state = END; else next_state = SAMPLE; end
-      END: if (rst) next_state = START;
+      END: next_state = START;
       default: next_state = state;
     endcase
+  end
+  
+  // updating the rx_output
+  reg write_reg = 0;
+  always @ (posedge bclk_x8 or posedge rst) begin
+		if (rst) rx_output <= 10'd0;
+		else if (write_reg) rx_output[sample_counter] <= snap_shot[3];
+		else rx_output <= rx_output;
   end
   
   reg [7:0] snap_shot = 0;
@@ -83,10 +91,11 @@ module reciever(input bclk_x8, rst, rx_data,
     rst_sample_counter = 0;
     inc_bit_counter = 0;
     clear_buffer = 0;
+	 write_reg = 0;
+	 snap_shot = snap_shot;
     case(state)
       START: begin
         rx_status = 0;
-        rx_output = 0;
         rst_sample_counter = 1;
         clear_buffer = 1;
       end
@@ -97,7 +106,8 @@ module reciever(input bclk_x8, rst, rx_data,
       end
       
       STORE: begin
-        rx_output[bit_counter] = snap_shot[3];
+        //rx_output[bit_counter] = snap_shot[3];
+		  write_reg = 1;
         rx_status = 1;
         inc_bit_counter = 1;
         rst_sample_counter = 1;
@@ -127,8 +137,7 @@ module transmitter(input bclk, rst, ready,
   
   // state registers
   reg [2:0] state, next_state;
-  reg [7:0] data_reg;
-  
+ 
   always @ (posedge bclk or posedge rst) begin
     if (rst) state <= START;
     else state <= next_state;
@@ -136,7 +145,7 @@ module transmitter(input bclk, rst, ready,
   
   always @ (posedge bclk or posedge rst) begin
     if (rst) bit_counter <= 0;
-    else if (tx_status) bit_counter <= bit_counter + 1;
+    else if (tx_status) bit_counter <= bit_counter + 4'b1;
     else bit_counter <= -1;
   end
   
@@ -154,17 +163,26 @@ module transmitter(input bclk, rst, ready,
     endcase
   end
   
+  // data reg
+  reg [7:0] data_reg;
+  reg write_data;
+  always @ (posedge bclk or posedge rst) begin
+   if (rst) data_reg <= 0;
+	else if (write_data) data_reg <= data;
+	else data_reg <= data_reg;
+  end
   // output
   always @ (*) begin
+  write_data = 0;
     case(state)
       START: begin
         tx_status = 0; // no transmission taking place here so tx_status 0
         tx_data = 1; // data line high when we are not sending data
       end
       LOAD: begin
-        data_reg <= data; // loading data in data_reg
         tx_status = 0;
         tx_data = 1;
+		  write_data = 1;
       end
       TR_START: begin
         tx_status = 1;
@@ -178,7 +196,7 @@ module transmitter(input bclk, rst, ready,
         tx_status = 1;
         tx_data = 1; // sending stop bit
       end
-      default: tx_status = 0;
+      default: begin tx_status = 0; tx_data = 1; end
     endcase
   end
 endmodule
@@ -195,8 +213,8 @@ module baudrate(input clk, rst,
   
   parameter baud_sel = 0;
 
-  reg [16:0] baud_rate, br_counter; // for transmitter
-  reg [19:0] baud_rate_x8, br_x8_counter; // for reciever
+  reg [13:0] baud_rate, br_counter; // for transmitter
+  reg [10:0] baud_rate_x8, br_x8_counter; // for reciever
   
   // state registers
   reg [2:0] state, next_state;
@@ -212,8 +230,8 @@ module baudrate(input clk, rst,
       br_x8_counter <= 0;
     end
     else begin
-      br_counter <= (br_counter < baud_rate - 1) ? br_counter + 1 : 0;
-      br_x8_counter <= (br_x8_counter < baud_rate_x8 - 1) ? br_x8_counter + 1 : 0;
+      br_counter <= (br_counter < baud_rate - 1) ? br_counter + 14'd1 : 14'd0;
+      br_x8_counter <= (br_x8_counter < baud_rate_x8 - 1) ? br_x8_counter + 11'd1 : 11'd0;
       bclk <= (br_counter < baud_rate/2 - 1) ? 1'b0 : 1'b1;
       bclk_x8 <= (br_x8_counter < baud_rate_x8/2 - 1) ? 1'b0 : 1'b1;
     end
@@ -234,13 +252,12 @@ module baudrate(input clk, rst,
   // output logic, computing baudrate in terms of clock cycles when using 100MHz clk
   always @ (*) begin
     case(next_state)
-      S0: begin baud_rate = 100_000_000/9600; baud_rate_x8 = 100_000_000/(9600*8); end
-      S1: begin baud_rate = 100_000_000/19200; baud_rate_x8 = 100_000_000/(19200*8); end
-      S2: begin baud_rate = 100_000_000/57600; baud_rate_x8 = 100_000_000/(57600*8); end
-      S3: begin baud_rate = 100_000_000/115200; baud_rate_x8 = 100_000_000/(115200*8); end
+      S0: begin baud_rate = 14'd10417; baud_rate_x8 = 11'd1302; end // 9600
+      S1: begin baud_rate = 14'd5208; baud_rate_x8 = 11'd651; end // 19200
+      S2: begin baud_rate = 14'd1736; baud_rate_x8 = 11'd217; end // 57600
+      S3: begin baud_rate = 14'd868; baud_rate_x8 = 11'd109; end // 115200
       // For testing if Data bits are being sent, we set the bclk to 1 Hz
-      TEST: begin baud_rate = 100_000_000; baud_rate_x8 = 100_000_000; end
-      default: begin baud_rate = 100_000_000/9600; baud_rate_x8 = 100_000_000/(9600*8); end
+      default: begin baud_rate = 17'd10417; baud_rate_x8 = 11'd1302; end // 9600
     endcase
   end
 endmodule

@@ -20,7 +20,8 @@
 //////////////////////////////////////////////////////////////////////////////////
 module UART_to_MEM(
 input clk, rst, ready, rx_data,
-output reg [7:0] value
+output reg [7:0] value,
+output reg [2:0] values_received_count
     );
   
   
@@ -56,7 +57,7 @@ output reg [7:0] value
 		read_A <= 1;
 		read_address_A <= display_value_index;
 		value <= data_A;
-		display_value_index <= display_value_index + 1;
+		display_value_index <= display_value_index + 2'd1;
 	  end
 	  else read_A <= 0;
   end
@@ -64,23 +65,26 @@ output reg [7:0] value
   parameter IDLE = 0, RECEIVING = 1,
 				STORE = 2, END = 3;
 				
-  reg [2:0] values_received_count;
+  //reg [2:0] values_received_count;
   reg [2:0] state, next_state;
   always @ (posedge clk or posedge rst) begin
-    if (rst) state <= IDLE;
-    else state <= next_state;
+    if (rst) begin 
+		state <= IDLE;
+		//values_received_count <= 0;
+	 end
+	 else state <= next_state;
   end
 
   // next state logic
   always @ (*) begin
     next_state = state;
     case (state)
-      IDLE: if (ready == 1) next_state = RECEIVING;
+      IDLE: if (rx_data == 0) next_state = RECEIVING;
       
-      RECEIVING: if (rx_status == 0) next_state = STORE;
+      RECEIVING: begin if (rx_status == 0) next_state = STORE; else next_state = RECEIVING; end
       // going to send when we receive all the 4 numbers, otherwise we go to IDLE to get the next input
       STORE: begin if (values_received_count == 4) next_state = END; else next_state = IDLE; end
-      END: if (rst) next_state = IDLE;
+      END: begin if (rst) next_state = IDLE; else next_state = END; end
       default: next_state = state;
     endcase
   end
@@ -101,7 +105,7 @@ output reg [7:0] value
          write_A <= 1;
          write_value_A <= temp_reg [8:1];
          write_address_A <= values_received_count;
-			values_received_count <= values_received_count + 1;
+			values_received_count <= values_received_count + 3'b1;
       end
       
       END: begin
