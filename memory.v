@@ -41,7 +41,7 @@ module memory(input clk, rst, write, read,
       //integer j;
       for (i = 0; i < row; i = i+1)
         for (j = 0; j < column; j = j + 1)
-          mem[row*i + j] = 0;
+          mem[row*i + j] = 5-2*j+i; // make 0 later
     end
     // writing in memory
     else if (write) mem[write_address] <= write_value;

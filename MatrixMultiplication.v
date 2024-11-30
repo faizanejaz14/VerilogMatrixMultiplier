@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Defining memory Module
 module TM_matrix_multiplication(input clk, rst, output reg complete);
-  
+  // only need to change memory modules A and B into UART_to_MEM and R into MEM_to_TX
   integer _i; // temp variable for loading memory
   // initializing memory A
   reg write_A, read_A;
@@ -55,16 +55,19 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
                                           .data(data_R));
     
   // initializing MAC module
-  reg rst_MAC, MAC_acc;
-  mac _mac (.clk(clk), .rst(rst_MAC), .acc(MAC_acc), .a(data_A), .b(data_B), .c(write_value_R));
+  reg rst_MAC, MAC_acc, MAC_sum;
+  mac _mac (.clk(clk), .rst(rst_MAC), .sum(MAC_sum), .acc(MAC_acc), .a(data_A), .b(data_B), .c(write_value_R));
   
   // states
-  parameter IDLE = 0, LOAD_MEM = 1, START = 2, LOAD_VAL = 3, MAC = 4, STORE = 5, DONE = 6;
+  parameter IDLE = 0, START = 2, LOAD_VAL = 3, MAC = 4, STORE = 5, DONE = 6;
   reg [2:0] state, next_state;
   
   parameter total_elements = 2*2;
   // reg rst_i, rst_j, rst_k;
   reg [2:0] i, j, k;
+  // temporary counter to write values in Mem A and Mem B
+  reg [2:0] write_counter = 0;
+  
   
   always @ (posedge clk or posedge rst) begin
     if (rst) state <= IDLE;
@@ -74,24 +77,23 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
   always @ (*) begin
     next_state = state;
     case (state)
-      IDLE: next_state = LOAD_MEM;
+      IDLE: next_state = START; // need to only start after A and B are loaded, make logic for this later
       
-      LOAD_MEM: next_state = START;
-
       START: next_state = LOAD_VAL;
       
-      LOAD_VAL:	next_state = MAC;
-      
-      MAC: if (k == 2) next_state = STORE;
-          
-      STORE: begin
-        if (i < 2 || j < 2)
-          next_state = LOAD_VAL;
-        else
-          next_state = DONE;
+      LOAD_VAL: begin
+        if (i >= 2) next_state = DONE;
+        else next_state = MAC;
       end
       
-      DONE: next_state = LOAD_MEM;
+      MAC: begin
+        if (k == 1) next_state = STORE;
+        else next_state = LOAD_VAL;
+      end
+          
+      STORE: next_state = LOAD_VAL;
+      
+      DONE: if (rst) next_state = IDLE;
       
       default: next_state = state;
     endcase
@@ -106,23 +108,14 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
     read_B <= 0;
     write_A <= 0;
     write_B <= 0;
-	 complete <= 0;
-    case (state)
-      LOAD_MEM: begin
-        // Loading data in memory
-        write_A <= 1;
-        for (_i = 0; _i < 9; _i=_i+1) begin
-          write_value_A <= _i*2 + 1;
-          write_address_A <= _i;
-        end
+    MAC_sum <= 0;
 
-        write_B <= 1;
-        for (_i = 0; _i < 9; _i=_i+1) begin
-          write_value_B <= _i*2;
-          write_address_B <= _i;
-        end
+    case (state)
+      IDLE: begin
+          write_counter <= 0;
+			 complete <= 0;
       end
-		
+      
       START: begin
         i <= 0;
         j <= 0;
@@ -133,21 +126,24 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
       LOAD_VAL: begin
         read_address_A <= 2*i + k;
         read_A <= 1;
+        
         read_address_B <= 2*k + j;
         read_B <= 1;
+        MAC_sum <= 1;
       end
       
       MAC: begin
         k <= k + 1;
+        if (k == 1)
+          MAC_acc <= 1;
       end
       
       STORE: begin
         write_address_R <= 2*i + j;
-        MAC_acc <= 1;
-        rst_MAC <= 1;
         write_R <= 1;
         k <= 0;
-        if (j == 2) begin
+        rst_MAC <= 1;
+        if (j == 1) begin
           j <= 0;
           i <= i + 1;
         end
@@ -165,12 +161,11 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
       end
     endcase
   end
+  
 endmodule
 
-
-//-------------------------------------- MAC --------------------------------------//
-
-module mac(input clk, rst, acc,
+//-------------- MAC ------------------//
+module mac(input clk, rst, sum, acc,
            input [7:0] a, b,
            output reg [15:0] c); // max output is (2^8 - 1) * (2^8 - 1) is 16 bit number
   reg [15:0] temp;
@@ -178,6 +173,7 @@ module mac(input clk, rst, acc,
   always @ (posedge clk or posedge rst) begin
     if (rst) temp <= 0;
     else if (acc) c <= temp;
-    else temp <= temp + a*b;
+    else if (sum) temp <= temp + a*b;
+    else temp <= temp;
   end
 endmodule
