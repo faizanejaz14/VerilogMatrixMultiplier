@@ -53,12 +53,13 @@ module tb_MEM_to_TX;
 		rst = 0;
       read_R_mat = 1;
 		
-		#5_500_000 read_R_mat = 0;
+		//#5_500_000 read_R_mat = 0;
 		// Add stimulus here
 		
-		#5_000_000 read_R_mat = 1;
-		#5_000_000 read_R_mat = 0;
-				
+		//#5_000_000 read_R_mat = 1;
+		//#5_000_000 read_R_mat = 0;
+		
+		#15_000_000;
 		#10_000_000 $finish;
 	end
       

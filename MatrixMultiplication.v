@@ -124,10 +124,10 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
       end
       
       LOAD_VAL: begin
-        read_address_A <= 2*i + k;
+        read_address_A <= 2*i + k; //for flexibility replace '2' with variable
         read_A <= 1;
         
-        read_address_B <= 2*k + j;
+        read_address_B <= 2*k + j; //for flexibility replace '2' with variable
         read_B <= 1;
         MAC_sum <= 1;
       end

@@ -1,4 +1,3 @@
-`timescale 1ns / 1ps
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -52,7 +51,9 @@ output tx_data
 	
 	// Level edge detector as we only need to check posedge of read_R_mat signal
 	wire read_R_pulse;
-	level_det ld (.clk(clk), .in(read_R_mat), .pulse(read_R_pulse));
+	wire slow_clk;
+	clk_div eddy (.clk(clk), .slow_clk(slow_clk));
+	level_det ld (.clk(slow_clk), .in(read_R_mat), .pulse(read_R_pulse));
 	
 	// state registers
 	reg [1:0] state, next_state;
@@ -82,12 +83,11 @@ output tx_data
 	reg inc_vsc, rst_vsc;
 	always @ (posedge inc_vsc or posedge rst_vsc) begin
 		if (rst_vsc) values_sent_count <= 3'd0;
-		else if (inc_vsc) values_sent_count <= values_sent_count + 3'd1;
+		else if (inc_vsc) begin read_address_R <= values_sent_count; values_sent_count <= values_sent_count + 3'd1; end
 		else values_sent_count <= values_sent_count;
 	end
   
 	always @ (state) begin // at * it is changing state too many times, causing simulation to crash
-		read_address_R = values_sent_count;
 		read_R = 1'b0;
 		inc_vsc = 1'b0;
 		rst_vsc = 1'b0;
@@ -107,6 +107,11 @@ endmodule
 module level_det(input clk, in,
 						output pulse);
 	reg r1, r2, r3;
+	initial begin
+		r1 <= 0;
+		r2 <= 0;
+		r3 <= 0;
+	end
 	
 	always @ (posedge clk) begin
 		r1 <= in;
