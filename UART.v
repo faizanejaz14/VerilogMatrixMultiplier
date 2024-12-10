@@ -196,7 +196,7 @@ module transmitter(input bclk, rst, ready,
         tx_status = 1;
         tx_data = 1; // sending stop bit
       end
-      default: begin tx_status = 0; tx_data = 1; end
+      default: begin tx_status = 0; tx_data = 1; end //faizan and zak changed 'tx_data = 1' to 'tx_data = 0' but it apparently it didnt effect.
     endcase
   end
 endmodule

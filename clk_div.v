@@ -25,7 +25,7 @@ module clk_div(input clk,
 	//parameter DIV = 100; 
 	parameter cycles = 100_000_000/DIV; 
 	always @ (posedge clk) begin 
-		counter <= (counter < cycles - 1) ? counter + 32'b1 : 32'b0; 
+		counter <= (counter < cycles - 1) ? counter + 27'b1 : 27'b0; 
 		slow_clk <= (counter < cycles/2) ? 1'b1 : 1'b0; 
 	end 
 endmodule

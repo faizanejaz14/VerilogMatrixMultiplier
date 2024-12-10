@@ -39,7 +39,7 @@ output tx_data
   reg write_R;
   reg [5:0] write_address_R, read_address_R;
   reg [7:0] write_value_R;
-  memory #(.row(2), .column(2)) matrix_R (.clk(clk), .rst(rst), .write(write_R), .read(read_R),
+  memory #(.row(2), .column(2)) matrix_R (.clk(clk), .write(write_R), .read(read_R),
                                           .write_address(write_address_R),
                                           .read_address(read_address_R),
                                           .write_value(write_value_R),
@@ -50,10 +50,10 @@ output tx_data
 	parameter IDLE = 0, START_TRANSMIT = 1, TRANSMIT = 2;
 	
 	// Level edge detector as we only need to check posedge of read_R_mat signal
-	wire read_R_pulse;
-	wire slow_clk;
-	clk_div eddy (.clk(clk), .slow_clk(slow_clk));
-	level_det ld (.clk(slow_clk), .in(read_R_mat), .pulse(read_R_pulse));
+	//wire read_R_pulse;
+	//wire slow_clk;
+	//clk_div #(.cycles(100_000)) eddy (.clk(clk), .slow_clk(slow_clk));
+	//level_det ld (.clk(slow_clk), .in(read_R_mat), .pulse(read_R_pulse));
 	
 	// state registers
 	reg [1:0] state, next_state;
@@ -66,7 +66,7 @@ output tx_data
 	always @ (*) begin
 		next_state = state;
 		case (state)
-			IDLE: if (read_R_pulse) next_state = START_TRANSMIT;
+			IDLE: if (read_R_mat) next_state = START_TRANSMIT;
 			START_TRANSMIT: begin
 				if (tx_status) begin
 					if (values_sent_count < 4) next_state = TRANSMIT;
@@ -81,12 +81,17 @@ output tx_data
 	// output logic
 	reg [2:0] values_sent_count = 3'b0;
 	reg inc_vsc, rst_vsc;
+	// Ensuring reset and count increment logic is handled correctly
 	always @ (posedge inc_vsc or posedge rst_vsc) begin
-		if (rst_vsc) values_sent_count <= 3'd0;
-		else if (inc_vsc) begin read_address_R <= values_sent_count; values_sent_count <= values_sent_count + 3'd1; end
-		else values_sent_count <= values_sent_count;
+		 if (rst_vsc) begin
+			  values_sent_count <= 3'd0;   // Reset count after transmission is done
+			  read_address_R <= 3'd0;      // Reset read address
+		 end else if (inc_vsc) begin
+			  values_sent_count <= values_sent_count + 3'd1;    // Increment count
+			  read_address_R <= values_sent_count;              // Update read address
+		 end
 	end
-  
+	
 	always @ (state) begin // at * it is changing state too many times, causing simulation to crash
 		read_R = 1'b0;
 		inc_vsc = 1'b0;
