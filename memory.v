@@ -66,6 +66,6 @@ module memory(input clk, rst, write, read,
   end 
 	
   // async reading
-  always @ (*) begin if (read) data = mem[read_address]; else data = 8'b0; end
+  always @ (*) begin if (read) data = mem[read_address]; else data = data; end
 endmodule
 

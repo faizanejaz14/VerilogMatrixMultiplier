@@ -50,9 +50,10 @@ output tx_status
   wire [7:0] data_R;
   reg read_R;
   reg TransmitSignal;
-
+  reg [7:0] data_value;
+  
   baudrate #(.baud_sel(0)) br(.clk(clk), .rst(rst), .bclk(bclk), .bclk_x8(bclk_x8));
-  transmitter tr(.bclk(bclk), .rst(rst), .ready(TransmitSignal), .data(data_R), .tx_status(tx_status), .tx_data(tx_data));
+  transmitter tr(.bclk(bclk), .rst(rst), .ready(TransmitSignal), .data(data_value), .tx_status(tx_status), .tx_data(tx_data));
   //reciever rc(.bclk_x8(bclk_x8), .rst(rst), .rx_data(rx_data), .rx_status(rx_status), .rx_output(temp_reg));
 
 //===memory===//
@@ -70,12 +71,12 @@ output tx_status
 	
 
 	//===FSM===//
-	parameter IDLE = 0, READ_DATA = 1, TRANSMIT_DATA = 2, NEXT_VALUE_PREP = 3;
+	parameter IDLE = 0, READ_DATA = 1, TRANSMIT_READY = 2, TRANSMIT_DATA = 3, NEXT_VALUE_PREP = 4;
 	
 	// Level edge detector as we only need to check posedge of read_R_mat signal
 	//wire read_R_pulse;
-	//wire slow_clk;
-	//clk_div #(.cycles(100_000)) eddy (.clk(clk), .slow_clk(slow_clk));
+	wire slow_clk;
+	//clk_div #(.cycles(100_000_000)) eddy (.clk(clk), .slow_clk(slow_clk));
 	//level_det ld (.clk(slow_clk), .in(read_R_mat), .pulse(read_R_pulse));
 	
 	// state registers
@@ -102,16 +103,24 @@ output tx_status
 				//if (tx_status) begin
 					if (values_sent_count < 4) begin
 						read_R = 1'b1;
+						TransmitSignal = 1'b0;
 						read_address_R = values_sent_count;              // Update read address
-						if (data_R)
-							next_state = TRANSMIT_DATA;
-						else next_state = state;
+						next_state = TRANSMIT_READY;
 					end
 					else next_state = IDLE;
 				//end
 			end
+			TRANSMIT_READY: begin
+				if (data_R > 0) begin //previously (data_R)
+					data_value = data_R;
+					TransmitSignal = 1'b1;
+					next_state = TRANSMIT_DATA;
+				end
+				else next_state = state;
+			end
 			TRANSMIT_DATA: begin
-				TransmitSignal = 1'b1;
+				TransmitSignal = 1'b0;
+				read_R = 1'b0;
 				//if (tx_status) begin
 					//if (values_sent_count < 4) begin
 					//	read_R = 1'b1;
@@ -123,19 +132,24 @@ output tx_status
 					//else next_state = IDLE;
 				//end
 			end
-			NEXT_VALUE_PREP: begin 
+			NEXT_VALUE_PREP: begin
+				read_R = 1'b0;
+				TransmitSignal = 1'b0;
 				if (!tx_status) begin
-					read_R = 1'b0;
 					values_sent_count = values_sent_count + 3'd1;    // Increment count
+					//TransmitSignal = 1'b0;
 					//if (!tx_status) 
 					next_state = READ_DATA;
 				end
 				else next_state = state;
-				
 			end
 			default: next_state = state;
 		endcase
 	end	
 	
+	//always @ (posedge slow_clk) begin
+		
+	
+	//end
 endmodule
 

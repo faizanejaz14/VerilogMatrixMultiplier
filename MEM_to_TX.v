@@ -28,8 +28,23 @@ output tx_data
   wire tx_status;
   wire [7:0] data_R;
   reg read_R;
+  reg [7:0] data_storage;
+  reg load_ds = 1'b0;
+  
+  always @ (posedge clk or posedge rst) begin
+		if (rst) data_storage <= 8'b0;
+		else if (load_ds) data_storage <= data_R;
+		else data_storage <= data_storage;
+  end
+  
+	// Level edge detector as we only need to check posedge of read_R_mat signal
+	wire read_R_pulse;
+	wire slow_clk;
+	clk_div #(.cycles(100_000_000)) eddy (.clk(clk), .slow_clk(slow_clk));
+	level_det ld (.clk(bclk), .in(read_R_mat), .pulse(read_R_pulse));
+
   baudrate #(.baud_sel(0)) br(.clk(clk), .rst(rst), .bclk(bclk), .bclk_x8(bclk_x8));
-  transmitter tr(.bclk(bclk), .rst(rst), .ready(read_R), .data(data_R), .tx_status(tx_status), .tx_data(tx_data));
+  transmitter tr(.bclk(bclk), .rst(rst), .ready(read_R_pulse), .data(data_storage), .tx_status(tx_status), .tx_data(tx_data));
   //reciever rc(.bclk_x8(bclk_x8), .rst(rst), .rx_data(rx_data), .rx_status(rx_status), .rx_output(temp_reg));
 
 //===memory===//
@@ -48,13 +63,7 @@ output tx_data
 
 	//===FSM===//
 	parameter IDLE = 0, START_TRANSMIT = 1, TRANSMIT = 2;
-	
-	// Level edge detector as we only need to check posedge of read_R_mat signal
-	//wire read_R_pulse;
-	//wire slow_clk;
-	//clk_div #(.cycles(100_000)) eddy (.clk(clk), .slow_clk(slow_clk));
-	//level_det ld (.clk(slow_clk), .in(read_R_mat), .pulse(read_R_pulse));
-	
+		
 	// state registers
 	reg [1:0] state, next_state;
 	always @ (posedge clk or posedge rst) begin
@@ -96,12 +105,14 @@ output tx_data
 		read_R = 1'b0;
 		inc_vsc = 1'b0;
 		rst_vsc = 1'b0;
+		load_ds = 1'b0;
 		case(state)
 			IDLE: begin
 				rst_vsc = 1'b1;
 			end
 			START_TRANSMIT: begin
 				read_R = 1'b1;
+				load_ds = 1'b1;
 				inc_vsc = 1'b1;
 			end
 			default: begin read_R = 1'b0; inc_vsc = 1'b0; end
