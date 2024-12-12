@@ -140,7 +140,7 @@ module transmitter(input bclk, rst, ready,
   
   // level edge detector
   //wire ready_pulse;
-  //level_det ld (.clk(bclk), .in(ready), .pulse(ready_pulse));
+  level_det ld (.clk(bclk), .in(ready), .pulse(ready_pulse));
  
   always @ (posedge bclk or posedge rst) begin
     if (rst) state <= START;
@@ -157,12 +157,12 @@ module transmitter(input bclk, rst, ready,
   always @ (*) begin
     next_state = state;
     case (state)
-      START: if (ready) next_state = LOAD;
+      START: if (ready_pulse) next_state = LOAD;
       LOAD: next_state = TR_START;
       TR_START: next_state = TR_DATA;
       // transmitting from LSB
       TR_DATA: if (bit_counter == DATA_SIZE - 1) next_state = TR_END; // as counting starts from 0, we count 0 to seven
-      TR_END: if (!ready) next_state = START; 
+      TR_END: if (!ready_pulse) next_state = START; 
       default: next_state = state;
     endcase
   end
