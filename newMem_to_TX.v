@@ -40,6 +40,7 @@
 module newMEM_to_TX(
 input clk, rst, read_R_mat,
 output reg [4:0] state_LED,
+output reg [2:0] values_sent_count = 3'b0,
 output tx_data,
 output tx_status
     );
@@ -77,17 +78,19 @@ output tx_status
 	// Level edge detector as we only need to check posedge of read_R_mat signal
 	wire read_R_pulse;
 	wire slow_clk;
-	clk_div #(.cycles(1_00_000)) eddy (.clk(clk), .slow_clk(slow_clk));
+	clk_div #(.cycles(1_00_000_000)) eddy (.clk(clk), .slow_clk(slow_clk));
 	level_det ld (.clk(slow_clk), .in(read_R_mat), .pulse(read_R_pulse));
 	
 	// state registers
-	reg [1:0] state, next_state;
-	always @ (posedge clk or posedge rst) begin
-		if (rst) state <= IDLE;
-		else state <= next_state;
+	reg [2:0] state, next_state;
+	always @ (posedge slow_clk or posedge rst) begin
+		if (rst)
+			state <= IDLE;
+		else 
+			state <= next_state;
 	end
 	
-	reg [2:0] values_sent_count = 3'b0;
+	//reg [2:0] values_sent_count = 3'b0;
 	// state change logic
 	always @ (*) begin
 		next_state = state;
@@ -96,7 +99,7 @@ output tx_status
 				state_LED = 5'b10000;
 				read_R = 1'b0;
 				TransmitSignal = 1'b0;
-				values_sent_count = 3'd0;   // Reset count after transmission is done
+				//values_sent_count = 3'd0;   // Reset count after transmission is done
 				read_address_R = 3'd0;      // Reset read address
 				if (read_R_pulse) next_state = READ_DATA;
 				else next_state = state;
@@ -110,8 +113,8 @@ output tx_status
 						read_address_R = values_sent_count;              // Update read address
 						next_state = TRANSMIT_READY;
 					end
-					//else if (values_sent_count >= 4) next_state = IDLE;
-					else next_state = IDLE;
+					else if (values_sent_count >= 4) next_state = IDLE;
+					else next_state = state;
 				//end
 			end
 			TRANSMIT_READY: begin
@@ -121,12 +124,13 @@ output tx_status
 					read_R = 1'b0;
 					TransmitSignal = 1'b1;
 					next_state = TRANSMIT_DATA;
+					//next_state = NEXT_VALUE_PREP;
 				end
 				else next_state = state;
 			end
 			TRANSMIT_DATA: begin
 				state_LED = 5'b00010;
-				TransmitSignal = 1'b0;
+				//TransmitSignal = 1'b0;
 				//read_R = 1'b0;
 				//if (tx_status) begin
 					//if (values_sent_count < 4) begin
@@ -141,12 +145,13 @@ output tx_status
 			end
 			NEXT_VALUE_PREP: begin
 				state_LED = 5'b00001;
-				//read_R = 1'b0;
-				//TransmitSignal = 1'b0;
+				//state_LEDprep = 1'b1;
+				read_R = 1'b0;
+				TransmitSignal = 1'b0;
 				if (!tx_status) begin
-					values_sent_count = values_sent_count + 3'd1;    // Increment count
-					//TransmitSignal = 1'b0;
-					//if (!tx_status) 
+					//values_sent_count = values_sent_count + 3'd1;    // Increment count
+						//TransmitSignal = 1'b0;
+						//if (!tx_status) 
 					next_state = READ_DATA;
 				end
 				else next_state = state;
@@ -155,9 +160,34 @@ output tx_status
 		endcase
 	end	
 	
-	//always @ (posedge slow_clk) begin
+	wire TransmitPulse;
+	neg_level_edge nle (.clk(clk), .btn(TransmitSignal), .pulse(TransmitPulse));
+	always @ (posedge clk) begin
+		if(TransmitPulse)
+			values_sent_count = values_sent_count + 3'd1;    // Increment count
 		
-	
+		else if(state_LED == 5'b10000)
+			values_sent_count = 3'd0;    // Increment count
+		
+		
+	end
 	//end
 endmodule
 
+module neg_level_edge(input clk, btn,
+								output pulse);
+		reg r1, r2, r3;
+		initial begin
+			r1 <= 0;
+			r2 <= 0;
+			r3 <= 0;
+		end
+		
+		always @ (posedge clk) begin
+			r1 <= btn;
+			r2 <= r1;
+			r3 <= r2;
+		end
+		
+		assign pulse = ~r2 & r3;
+endmodule
