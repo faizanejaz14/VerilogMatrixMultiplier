@@ -31,7 +31,7 @@ output tx_data
   reg [7:0] data_storage;
   reg load_ds = 1'b0;
   
-  always @ (posedge clk or posedge rst) begin
+  always @ (posedge bclk or posedge rst) begin
 		if (rst) data_storage <= 8'b0;
 		else if (load_ds) data_storage <= data_R;
 		else data_storage <= data_storage;
@@ -40,11 +40,12 @@ output tx_data
 	// Level edge detector as we only need to check posedge of read_R_mat signal
 	wire read_R_pulse;
 	wire slow_clk;
+	reg transmit_;
 	clk_div #(.cycles(100_000_000)) eddy (.clk(clk), .slow_clk(slow_clk));
 	level_det ld (.clk(bclk), .in(read_R_mat), .pulse(read_R_pulse));
 
   baudrate #(.baud_sel(0)) br(.clk(clk), .rst(rst), .bclk(bclk), .bclk_x8(bclk_x8));
-  transmitter tr(.bclk(bclk), .rst(rst), .ready(read_R_pulse), .data(data_storage), .tx_status(tx_status), .tx_data(tx_data));
+  transmitter tr(.bclk(bclk), .rst(rst), .ready(transmit_), .data(data_R), .tx_status(tx_status), .tx_data(tx_data));
   //reciever rc(.bclk_x8(bclk_x8), .rst(rst), .rx_data(rx_data), .rx_status(rx_status), .rx_output(temp_reg));
 
 //===memory===//
@@ -66,7 +67,7 @@ output tx_data
 		
 	// state registers
 	reg [1:0] state, next_state;
-	always @ (posedge clk or posedge rst) begin
+	always @ (posedge bclk or posedge rst) begin
 		if (rst) state <= IDLE;
 		else state <= next_state;
 	end
@@ -75,7 +76,7 @@ output tx_data
 	always @ (*) begin
 		next_state = state;
 		case (state)
-			IDLE: if (read_R_mat) next_state = START_TRANSMIT;
+			IDLE: if (read_R_pulse) next_state = START_TRANSMIT;
 			START_TRANSMIT: begin
 				if (tx_status) begin
 					if (values_sent_count < 4) next_state = TRANSMIT;
@@ -90,12 +91,15 @@ output tx_data
 	// output logic
 	reg [2:0] values_sent_count = 3'b0;
 	reg inc_vsc, rst_vsc;
+	
 	// Ensuring reset and count increment logic is handled correctly
-	always @ (posedge inc_vsc or posedge rst_vsc) begin
+	wire inc_pulse;
+	level_det (.clk(clk), .in(inc_vsc), .pulse(inc_pulse));
+	always @ (posedge clk) begin
 		 if (rst_vsc) begin
 			  values_sent_count <= 3'd0;   // Reset count after transmission is done
 			  read_address_R <= 3'd0;      // Reset read address
-		 end else if (inc_vsc) begin
+		 end else if (inc_pulse) begin
 			  values_sent_count <= values_sent_count + 3'd1;    // Increment count
 			  read_address_R <= values_sent_count;              // Update read address
 		 end
@@ -106,6 +110,7 @@ output tx_data
 		inc_vsc = 1'b0;
 		rst_vsc = 1'b0;
 		load_ds = 1'b0;
+		transmit_ = 1'b0;
 		case(state)
 			IDLE: begin
 				rst_vsc = 1'b1;
@@ -114,6 +119,7 @@ output tx_data
 				read_R = 1'b1;
 				load_ds = 1'b1;
 				inc_vsc = 1'b1;
+				transmit_ = 1'b1;
 			end
 			default: begin read_R = 1'b0; inc_vsc = 1'b0; end
 		endcase

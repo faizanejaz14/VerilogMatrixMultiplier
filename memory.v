@@ -55,11 +55,15 @@ module memory(input clk, rst, write, read,
   always @ (posedge clk) begin
     // clearing memory
     if (rst) begin
-      //integer i;
-      //integer j;
-      for (i = 0; i < row; i = i+1)
-        for (j = 0; j < column; j = j + 1)
-          mem[row*i + j] = 5+2*i+j;
+	//	for (i = 0; i < row; i = i+1)
+   //     for (j = 0; j < column; j = j + 1)
+   //       mem[row*i + j] <= 5 + (10*i)+j;
+	mem[0] <= 8'd4;
+	mem[1] <= 8'd15;
+	mem[2] <= 8'd29;
+	mem[3] <= 8'd2;
+
+
     end
     // writing in memory
     else if (write) mem[write_address] <= write_value;

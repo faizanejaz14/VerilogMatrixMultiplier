@@ -4,7 +4,7 @@
 // Company: 
 // Engineer:
 //
-// Create Date:   16:40:21 12/10/2024
+// Create Date:   22:13:40 12/13/2024
 // Design Name:   newMEM_to_TX
 // Module Name:   D:/Study/7th Semester/DSD/MidProject/DSDmidprojectNEW/tb_newMEM_to_TX.v
 // Project Name:  DSDmidprojectNEW
@@ -30,6 +30,8 @@ module tb_newMEM_to_TX;
 	reg read_R_mat;
 
 	// Outputs
+	wire [4:0] state_LED;
+	wire [2:0] values_sent_count;
 	wire tx_data;
 	wire tx_status;
 
@@ -38,6 +40,8 @@ module tb_newMEM_to_TX;
 		.clk(clk), 
 		.rst(rst), 
 		.read_R_mat(read_R_mat), 
+		.state_LED(state_LED), 
+		.values_sent_count(values_sent_count), 
 		.tx_data(tx_data), 
 		.tx_status(tx_status)
 	);

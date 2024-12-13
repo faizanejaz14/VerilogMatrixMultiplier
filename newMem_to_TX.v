@@ -119,9 +119,10 @@ output tx_status
 			end
 			TRANSMIT_READY: begin
 				state_LED = 5'b00100;
+				read_R = 1'b0;
 				if (data_R > 0) begin //previously (data_R)
 					data_value = data_R;
-					read_R = 1'b0;
+					//read_R = 1'b0;
 					TransmitSignal = 1'b1;
 					next_state = TRANSMIT_DATA;
 					//next_state = NEXT_VALUE_PREP;
