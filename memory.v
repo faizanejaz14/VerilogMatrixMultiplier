@@ -34,20 +34,42 @@ module memory(input clk, rst, write, read,
   integer i;
   integer j;
   // sync writing
+  
+  
+  
+  //// zakria addition
+  //initial begin
+  //initialize
+  //for (i = 0; i < row; i = i+1)
+  //      for (j = 0; j < column; j = j + 1)
+  //        mem[row*i + j] = 5-2*i + j; // make 0 
+  //end
+  //// zakria close
+  
+  //always @ (posedge clk) begin
+  //  // writing in memory
+  //  if (write) mem[write_address] <= write_value;
+  //end
+    
+	// sync writing
   always @ (posedge clk) begin
     // clearing memory
     if (rst) begin
-      //integer i;
-      //integer j;
-      for (i = 0; i < row; i = i+1)
-        for (j = 0; j < column; j = j + 1)
-          mem[row*i + j] = 0;
+	//	for (i = 0; i < row; i = i+1)
+   //     for (j = 0; j < column; j = j + 1)
+   //       mem[row*i + j] <= 5 + (10*i)+j;
+	mem[0] <= 8'd0;
+	mem[1] <= 8'd85;
+	mem[2] <= 8'd1;
+	mem[3] <= 8'd170;
+
+
     end
     // writing in memory
     else if (write) mem[write_address] <= write_value;
-  end
-    
+  end 
+	
   // async reading
-  always @ (*) if (read) data = mem[read_address];
+  always @ (read) begin if (read) data = mem[read_address]; else data = data; end
 endmodule
 
