@@ -42,20 +42,22 @@ input clk, rst, read_R_mat,
 output reg [4:0] state_LED,
 output reg [2:0] values_sent_count = 3'b0,
 output tx_data,
-output tx_status
+output tx_status,
+output [7:0] data_R,
+output reg [5:0] read_address_R
     );
 	 
 	//===TX===//
   wire bclk, bclk_x8;
   wire [9:0] temp_reg;
   //wire tx_status;
-  wire [7:0] data_R;
+ // wire [7:0] data_R;
   reg read_R;
   reg TransmitSignal;
   reg [7:0] data_value;
   
   baudrate #(.baud_sel(0)) br(.clk(clk), .rst(rst), .bclk(bclk), .bclk_x8(bclk_x8));
-  transmitter tr(.bclk(bclk), .rst(rst), .ready(TransmitSignal), .data(data_value), .tx_status(tx_status), .tx_data(tx_data));
+  transmitter tr(.bclk(bclk), .rst(rst), .ready(TransmitSignal), .data(data_R), .tx_status(tx_status), .tx_data(tx_data));
   //reciever rc(.bclk_x8(bclk_x8), .rst(rst), .rx_data(rx_data), .rx_status(rx_status), .rx_output(temp_reg));
 
 //===memory===//
@@ -63,11 +65,11 @@ output tx_status
 
   // initializing memory R
   reg write_R;
-  reg [5:0] write_address_R, read_address_R;
+  reg [5:0] write_address_R;//, read_address_R;
   reg [7:0] write_value_R;
   memory #(.row(2), .column(2)) matrix_R (.clk(clk), .rst(rst), .write(write_R), .read(read_R),
                                           .write_address(write_address_R),
-                                          .read_address(read_address_R),
+                                          .read_address(values_sent_count),
                                           .write_value(write_value_R),
                                           .data(data_R));
 	
@@ -108,9 +110,9 @@ output tx_status
 				state_LED = 5'b01000;
 					//if (values_sent_count < 4 && !read_R_pulse) begin
 					if (values_sent_count < 4) begin
+						read_address_R = values_sent_count;              // Update read address
 						read_R = 1'b1;
 						TransmitSignal = 1'b0;
-						read_address_R = values_sent_count;              // Update read address
 						next_state = TRANSMIT_READY;
 					end
 					else if (values_sent_count >= 4) next_state = IDLE;
@@ -120,17 +122,18 @@ output tx_status
 			TRANSMIT_READY: begin
 				state_LED = 5'b00100;
 				read_R = 1'b0;
-				if (data_R > 0) begin //previously (data_R)
-					data_value = data_R;
+				//if (data_R > 0) begin //previously (data_R)
+					//data_value = data_R;
 					//read_R = 1'b0;
 					TransmitSignal = 1'b1;
 					next_state = TRANSMIT_DATA;
 					//next_state = NEXT_VALUE_PREP;
-				end
-				else next_state = state;
+				//end
+				//else next_state = state;
 			end
 			TRANSMIT_DATA: begin
 				state_LED = 5'b00010;
+				read_R = 1'b0;
 				//TransmitSignal = 1'b0;
 				//read_R = 1'b0;
 				//if (tx_status) begin

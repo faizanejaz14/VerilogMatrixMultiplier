@@ -58,10 +58,10 @@ module memory(input clk, rst, write, read,
 	//	for (i = 0; i < row; i = i+1)
    //     for (j = 0; j < column; j = j + 1)
    //       mem[row*i + j] <= 5 + (10*i)+j;
-	mem[0] <= 8'd4;
-	mem[1] <= 8'd15;
-	mem[2] <= 8'd29;
-	mem[3] <= 8'd2;
+	mem[0] <= 8'd0;
+	mem[1] <= 8'd85;
+	mem[2] <= 8'd1;
+	mem[3] <= 8'd170;
 
 
     end
@@ -70,6 +70,6 @@ module memory(input clk, rst, write, read,
   end 
 	
   // async reading
-  always @ (*) begin if (read) data = mem[read_address]; else data = data; end
+  always @ (read) begin if (read) data = mem[read_address]; else data = data; end
 endmodule
 

@@ -32,8 +32,9 @@ output tx_data
   reg load_ds = 1'b0;
   
   always @ (posedge bclk or posedge rst) begin
-		if (rst) data_storage <= 8'b0;
+		if (rst) data_storage <= 8'b1111111111;
 		else if (load_ds) data_storage <= data_R;
+		//else if (data_R > 0) data_storage <= data_R; //faizan's comment
 		else data_storage <= data_storage;
   end
   
@@ -45,7 +46,7 @@ output tx_data
 	level_det ld (.clk(bclk), .in(read_R_mat), .pulse(read_R_pulse));
 
   baudrate #(.baud_sel(0)) br(.clk(clk), .rst(rst), .bclk(bclk), .bclk_x8(bclk_x8));
-  transmitter tr(.bclk(bclk), .rst(rst), .ready(transmit_), .data(data_R), .tx_status(tx_status), .tx_data(tx_data));
+  transmitter tr(.bclk(bclk), .rst(rst), .ready(transmit_), .data(data_storage), .tx_status(tx_status), .tx_data(tx_data));
   //reciever rc(.bclk_x8(bclk_x8), .rst(rst), .rx_data(rx_data), .rx_status(rx_status), .rx_output(temp_reg));
 
 //===memory===//
