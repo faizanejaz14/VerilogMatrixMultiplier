@@ -19,7 +19,11 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 // Defining memory Module
-module TM_matrix_multiplication(input clk, rst, output reg complete);
+module TM_matrix_multiplication(input clk, rst, rx_data,
+											output tx_data,
+											output complete_A, complete_B,
+											output [15:0] write_value_R,
+											output reg [2:0] state);
   // only need to change memory modules A and B into UART_to_MEM and R into MEM_to_TX
   integer _i; // temp variable for loading memory
   // initializing memory A
@@ -27,32 +31,44 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
   reg [5:0] write_address_A, read_address_A;
   reg [7:0] write_value_A;
   wire [7:0] data_A;
-  memory #(.row(2), .column(2)) matrix_A (.clk(clk), .rst(rst), .write(write_A), .read(read_A),
-                                          .write_address(write_address_A),
-                                          .read_address(read_address_A),
-                                          .write_value(write_value_A),
-                                          .data(data_A));
+  //wire complete_A;
+  UART_to_MEM #(.row(2), .column(2)) matrix_A (.clk(clk), .rst(rst), 
+														.rx_data(rx_data),
+														.read_A(read_A),
+														//.write(write_A), .read(read_A),
+                                          //.write_address(write_address_A),
+                                          .read_address_A(read_address_A),
+                                          //.write_value(write_value_A),
+                                          .data_A(data_A),
+														.complete(complete_A));
   // initializing memory B
   reg write_B, read_B;
   reg [5:0] write_address_B, read_address_B;
   reg [7:0] write_value_B;
   wire [7:0] data_B;
-  memory #(.row(2), .column(2)) matrix_B (.clk(clk), .rst(rst), .write(write_B), .read(read_B),
-                                          .write_address(write_address_B),
-                                          .read_address(read_address_B),
-                                          .write_value(write_value_B),
-                                          .data(data_B));
+  //wire complete_B;
+  UART_to_MEM #(.row(2), .column(2)) matrix_B (.clk(clk), .rst(rst),
+														.rx_data(rx_data),
+														//.write(write_B),
+														.read_A(read_B),
+                                          //.write_address(write_address_B),
+                                          .read_address_A(read_address_B),
+                                          //.write_value(write_value_B),
+                                          .data_A(data_B),
+														.complete(complete_B));
   
   // initializing memory R
   reg write_R, read_R;
   reg [5:0] write_address_R, read_address_R;
-  wire [15:0] write_value_R;
+  //wire [15:0] write_value_R;
   wire [15:0] data_R;
-  memory #(.row(2), .column(2), .size(16)) matrix_R (.clk(clk), .rst(rst), .write(write_R), .read(read_R),
-                                          .write_address(write_address_R),
-                                          .read_address(read_address_R),
-                                          .write_value(write_value_R),
-                                          .data(data_R));
+  newMEM_to_TX #(.row(2), .column(2)) matrix_R (.clk(clk), .rst(rst), 
+														.write_R(write_R), .read_R_mat(read_R),
+                                          .write_address_R(write_address_R),
+                                          //.read_address(read_address_R),
+                                          .write_value_R(write_value_R),
+														.tx_data(tx_data));
+                                          //.data(data_R));
     
   // initializing MAC module
   reg rst_MAC, MAC_acc, MAC_sum;
@@ -60,8 +76,9 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
   
   // states
   parameter IDLE = 0, START = 2, LOAD_VAL = 3, MAC = 4, STORE = 5, DONE = 6;
-  reg [2:0] state, next_state;
-  
+  //reg [2:0] state, next_state;
+  reg [2:0] next_state;
+
   parameter total_elements = 2*2;
   // reg rst_i, rst_j, rst_k;
   reg [2:0] i, j, k;
@@ -69,7 +86,7 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
   reg [2:0] write_counter = 0;
   
   
-  always @ (posedge clk or posedge rst) begin
+  always @ (posedge slow_clk or posedge rst) begin
     if (rst) state <= IDLE;
     else state <= next_state;
   end
@@ -77,7 +94,7 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
   always @ (*) begin
     next_state = state;
     case (state)
-      IDLE: next_state = START; // need to only start after A and B are loaded, make logic for this later
+      IDLE: if(complete_A && complete_B) next_state = START; // need to only start after A and B are loaded, make logic for this later
       
       START: next_state = LOAD_VAL;
       
@@ -99,8 +116,11 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
     endcase
   end
   
+  wire slow_clk;
+  clk_div oneHz(.clk(clk), .slow_clk(slow_clk));
+  
   // State outputs
-  always @ (posedge clk) begin // replace clk with *
+  always @ (posedge slow_clk) begin // replace clk with *
     rst_MAC <= 0;
     MAC_acc <= 0;
     write_R <= 0;
@@ -109,11 +129,11 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
     write_A <= 0;
     write_B <= 0;
     MAC_sum <= 0;
+	 read_R <= 0;
 
     case (state)
       IDLE: begin
           write_counter <= 0;
-			 complete <= 0;
       end
       
       START: begin
@@ -151,7 +171,7 @@ module TM_matrix_multiplication(input clk, rst, output reg complete);
       end
       
       DONE: begin
-        complete <= 1;
+			read_R <= 1;
       end
       
       default: begin

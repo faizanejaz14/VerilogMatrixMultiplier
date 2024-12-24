@@ -20,10 +20,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 module UART_to_MEM(
 input clk, rst, rx_data, read_A, read_address_A,
-output [7:0] data_A
+output [7:0] data_A,
+output reg complete
     );
   
-  
+  parameter row = 2, column = 2;
   //===receiver===//
   wire bclk, bclk_x8;
   wire [9:0] temp_reg;
@@ -36,7 +37,7 @@ output [7:0] data_A
   //===memory===//
   // initializing memory A
   reg write_A; //, read_A;
-  reg [5:0] write_address_A; //, read_address_A;
+  reg [row*column + 1:0] write_address_A; //, read_address_A;
   reg [7:0] write_value_A;
   // wire [7:0] data_A;
   memory #(.row(2), .column(2)) matrix_A (.clk(clk), .rst(rst), .write(write_A), .read(read_A),
@@ -69,7 +70,9 @@ output [7:0] data_A
 				
   //reg [2:0] values_received_count;
   reg [2:0] state, next_state;
-  always @ (posedge clk or posedge rst) begin
+  wire slow_clk;
+  clk_div oneHz(.clk(clk), .slow_clk(slow_clk));
+  always @ (posedge slow_clk or posedge rst) begin
     if (rst) begin 
 		state <= IDLE;
 	 end
@@ -84,19 +87,19 @@ output [7:0] data_A
       
       RECEIVING: begin if (rx_status == 0) next_state = STORE; else next_state = RECEIVING; end
       // going to send when we receive all the 4 numbers, otherwise we go to IDLE to get the next input
-      STORE: begin if (values_received_count == 3) next_state = END; else next_state = IDLE; end
+      STORE: begin if (values_received_count == row*column - 1) next_state = END; else next_state = IDLE; end
       END: begin if (rst) next_state = IDLE; else next_state = END; end
       default: next_state = state;
     endcase
   end
   
   // values_received_count logic, before it was in the always block at line 102 but we seperate it to prevent undefined behaviour before.
-  reg [2:0] values_received_count = 3'd0;
+  reg [row*column + 1:0] values_received_count = 0;
   reg inc_vrc = 1'b0;
   reg rst_vrc = 1'b0;
   always @ (posedge clk or posedge rst or posedge rst_vrc) begin
-	if (rst | rst_vrc) values_received_count <= 3'd0;
-	else if (inc_vrc) values_received_count <= values_received_count + 3'd1;
+	if (rst | rst_vrc) values_received_count <= 0;
+	else if (inc_vrc) values_received_count <= values_received_count + 1;
 	else values_received_count <= values_received_count;
   end
   
@@ -105,6 +108,7 @@ output [7:0] data_A
 //	 display = 1'b0;
 	 inc_vrc = 1'b0;
 	 rst_vrc = 1'b0;
+	 complete = 1'b0;
 	 
     case(state)
       IDLE: begin
@@ -124,6 +128,7 @@ output [7:0] data_A
       
       END: begin
 		   rst_vrc = 1'b1;
+			complete = 1'b1;
 			//display = 1'b1;
       end
       

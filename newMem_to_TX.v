@@ -38,12 +38,15 @@
 //
 /////////////////////////////////////// made by Faizan. Debugged by Zakria and Irtaza ///////////////////////////////////////////
 module newMEM_to_TX(
-input clk, rst, read_R_mat,
-output tx_data,
-output [7:0] data_R,
-output reg [2:0] values_sent_count
+input clk, rst, read_R_mat, write_R,
+input [row*column + 1:0] write_address_R,
+input [7:0] write_value_R,
+output tx_data
+//output [7:0] data_R,
+//output reg [2:0] values_sent_count
     );
 	 
+	parameter row = 2, column = 2;
   //===TX===//
   wire bclk, bclk_x8;
   wire [9:0] temp_reg;
@@ -53,6 +56,7 @@ output reg [2:0] values_sent_count
   wire tx_status;
   wire TransmitPulse;
   wire slow_clk;
+  wire [7:0] data_R;
   clk_div #(.cycles(100_000)) eddy (.clk(clk), .slow_clk(slow_clk));
   level_det tsld (.clk(slow_clk), .in(TransmitSignal), .pulse(posTransmitPulse));
   
@@ -63,10 +67,10 @@ output reg [2:0] values_sent_count
 // paramterize later
 
   // initializing memory R
-  reg write_R;
-  reg [5:0] write_address_R;//, values_sent_count;
-  reg [7:0] write_value_R;
-  memory #(.row(2), .column(2)) matrix_R (.clk(clk), .rst(rst), .write(write_R), .read(read_R),
+  //reg write_R;
+  reg [row*column + 1:0] values_sent_count;
+  //reg [7:0] write_value_R;
+  memory #(.row(row), .column(column)) matrix_R (.clk(clk), .rst(rst), .write(write_R), .read(read_R),
                                           .write_address(write_address_R),
                                           .read_address(values_sent_count),
                                           .write_value(write_value_R),
@@ -101,7 +105,7 @@ output reg [2:0] values_sent_count
 			end
 			READ_DATA: begin
 					TransmitSignal = 1'b0;
-					if (values_sent_count > 3) next_state = IDLE;
+					if (values_sent_count > row*column - 1) next_state = IDLE;
 					else begin
 						read_R = 1'b1;
 						next_state = TRANSMIT_READY;
