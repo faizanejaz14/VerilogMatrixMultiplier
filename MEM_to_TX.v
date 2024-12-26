@@ -32,7 +32,7 @@ output tx_data
   reg load_ds = 1'b0;
   
   always @ (posedge bclk or posedge rst) begin
-		if (rst) data_storage <= 8'b1111111111;
+		if (rst) data_storage <= 8'b11111111;
 		else if (load_ds) data_storage <= data_R;
 		//else if (data_R > 0) data_storage <= data_R; //faizan's comment
 		else data_storage <= data_storage;
