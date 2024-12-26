@@ -52,17 +52,17 @@ module memory(input clk, rst, write, read,
 	// sync writing
   always @ (posedge clk) begin
     // clearing memory
-    if (rst) begin
-		for (i = 0; i < row; i = i+1)
-        for (j = 0; j < column; j = j + 1)
-          mem[row*i + j] <= 0;
+    //if (rst) begin
+		//for (i = 0; i < row; i = i+1)
+        //for (j = 0; j < column; j = j + 1)
+          //mem[row*i + j] <= 0;
 	//mem[0] <= 8'd0;
 	//mem[1] <= 8'd8;
 	//mem[2] <= 8'd1;
 	//mem[3] <= 8'd9;
-    end
+    //end
     // writing in memory
-    else if (write) mem[write_address] <= write_value;
+    if (write) mem[write_address] <= write_value;
   end 
 	
   // async reading

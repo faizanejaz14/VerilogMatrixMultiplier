@@ -78,6 +78,7 @@ module TM_matrix_multiplication(input clk, rst, write_A_TX, write_B_TX, rx_data,
 	MAC_sum <= 1'b0;
 	state <= IDLE;
   end
+  
   always @ (posedge slow_clk or posedge rst) begin
     if (rst) state <= IDLE;
     else state <= next_state;
@@ -107,9 +108,6 @@ module TM_matrix_multiplication(input clk, rst, write_A_TX, write_B_TX, rx_data,
       default: next_state = state;
     endcase
   end
-  
-  wire slow_clk;
-  clk_div oneHz(.clk(clk), .slow_clk(slow_clk));
   
   // State outputs
   always @ (posedge slow_clk) begin // replace clk with *

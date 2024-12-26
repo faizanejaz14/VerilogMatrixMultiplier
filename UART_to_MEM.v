@@ -115,7 +115,6 @@ output [7:0] data_A
 	 written_completed = 1'b0;
 	 inc_vrc = 1'b0;
 	 rst_vrc = 1'b0;
-	 complete = 1'b0;
 	 
     case(state)
       IDLE: begin
