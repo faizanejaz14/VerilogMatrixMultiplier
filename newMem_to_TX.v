@@ -39,7 +39,7 @@
 /////////////////////////////////////// made by Faizan. Debugged by Zakria and Irtaza ///////////////////////////////////////////
 module newMEM_to_TX(
 input clk, rst, read_R_mat, write_R,
-input [row*column + 1:0] write_address_R,
+input [31:0] write_address_R,
 input [7:0] write_value_R,
 output tx_data
 //output [7:0] data_R,
@@ -63,14 +63,14 @@ output tx_data
   baudrate #(.baud_sel(0)) br(.clk(clk), .rst(rst), .bclk(bclk), .bclk_x8(bclk_x8));
   transmitter tr(.bclk(bclk), .rst(rst), .ready(posTransmitPulse), .data(data_R), .tx_status(tx_status), .tx_data(tx_data));
 
-//===memory===//
-// paramterize later
+  //===memory===//
+  // paramterize later
 
   // initializing memory R
   //reg write_R;
-  reg [row*column + 1:0] values_sent_count;
+  reg [31:0] values_sent_count;
   //reg [7:0] write_value_R;
-  memory #(.row(row), .column(column)) matrix_R (.clk(clk), .rst(rst), .write(write_R), .read(read_R),
+  memory #(.row(row), .column(column), .size(16)) matrix_R (.clk(clk), .rst(rst), .write(write_R), .read(read_R),
                                           .write_address(write_address_R),
                                           .read_address(values_sent_count),
                                           .write_value(write_value_R),
@@ -139,27 +139,9 @@ output tx_data
 	//neg_level_edge nle (.clk(slow_clk), .btn(TransmitSignal), .pulse(TransmitPulse));
 	always @ (posedge slow_clk) begin
 		if(posTransmitPulse)
-			values_sent_count <= values_sent_count + 3'd1;    // Increment count
+			values_sent_count <= values_sent_count + 1;    // Increment count
 		
 		else if(state == IDLE)
-			values_sent_count <= 3'd0;    // Increment count	
+			values_sent_count <= 0;    // Increment count	
 	end
-endmodule
-
-module neg_level_edge(input clk, btn,
-								output pulse);
-		reg r1, r2, r3;
-		initial begin
-			r1 <= 0;
-			r2 <= 0;
-			r3 <= 0;
-		end
-		
-		always @ (posedge clk) begin
-			r1 <= btn;
-			r2 <= r1;
-			r3 <= r2;
-		end
-		
-		assign pulse = ~r2 & r3;
 endmodule

@@ -19,73 +19,65 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 // Defining memory Module
-module TM_matrix_multiplication(input clk, rst, rx_data,
-											output tx_data,
-											output complete_A, complete_B,
-											output [15:0] write_value_R,
-											output reg [2:0] state);
+module TM_matrix_multiplication(input clk, rst, write_A_TX, write_B_TX, rx_data,
+											output reg complete,
+											//output reg rst_MAC, MAC_acc, MAC_sum,
+											//output reg [2:0] state, 
+											//output [7:0] write_value_R,
+											output written_completed_A, written_completed_B,
+											//output [7:0] data_A, data_B,
+											output tx_data
+											);
   // only need to change memory modules A and B into UART_to_MEM and R into MEM_to_TX
   integer _i; // temp variable for loading memory
+  parameter row = 10, column = 10;
+
   // initializing memory A
-  reg write_A, read_A;
-  reg [5:0] write_address_A, read_address_A;
-  reg [7:0] write_value_A;
+  reg read_A;//, write_A_TX;
+  reg [31:0] read_address_A;
+  //wire written_completed_A;
   wire [7:0] data_A;
-  //wire complete_A;
-  UART_to_MEM #(.row(2), .column(2)) matrix_A (.clk(clk), .rst(rst), 
-														.rx_data(rx_data),
-														.read_A(read_A),
-														//.write(write_A), .read(read_A),
-                                          //.write_address(write_address_A),
-                                          .read_address_A(read_address_A),
-                                          //.write_value(write_value_A),
-                                          .data_A(data_A),
-														.complete(complete_A));
+  UART_to_MEM #(.row(row), .column(column)) A(.clk(clk), .rst(rst), .rx_data(rx_data), .read_A(read_A), .write_A_TX(write_A_TX), .read_address_A(read_address_A),
+					.written_completed(written_completed_A), .data_A(data_A));
+
   // initializing memory B
-  reg write_B, read_B;
-  reg [5:0] write_address_B, read_address_B;
-  reg [7:0] write_value_B;
+  reg read_B;//, write_B_TX;
+  reg [31:0] read_address_B;
+  //wire written_completed_B;
   wire [7:0] data_B;
-  //wire complete_B;
-  UART_to_MEM #(.row(2), .column(2)) matrix_B (.clk(clk), .rst(rst),
-														.rx_data(rx_data),
-														//.write(write_B),
-														.read_A(read_B),
-                                          //.write_address(write_address_B),
-                                          .read_address_A(read_address_B),
-                                          //.write_value(write_value_B),
-                                          .data_A(data_B),
-														.complete(complete_B));
+  UART_to_MEM #(.row(row), .column(column)) B(.clk(clk), .rst(rst), .rx_data(rx_data), .read_A(read_B), .write_A_TX(write_B_TX), .read_address_A(read_address_B),
+					.written_completed(written_completed_B), .data_A(data_B));
   
   // initializing memory R
-  reg write_R, read_R;
-  reg [5:0] write_address_R, read_address_R;
-  //wire [15:0] write_value_R;
-  wire [15:0] data_R;
-  newMEM_to_TX #(.row(2), .column(2)) matrix_R (.clk(clk), .rst(rst), 
-														.write_R(write_R), .read_R_mat(read_R),
-                                          .write_address_R(write_address_R),
-                                          //.read_address(read_address_R),
-                                          .write_value_R(write_value_R),
-														.tx_data(tx_data));
-                                          //.data(data_R));
+  reg write_R, read_R_mat;
+  reg [31:0] write_address_R, read_address_R;
+  wire [15:0] write_value_R;
+  newMEM_to_TX #(.row(row), .column(column)) R(.clk(clk), .rst(rst), .read_R_mat(read_R_mat), .write_R(write_R), .write_address_R(write_address_R),
+						.write_value_R(write_value_R), .tx_data(tx_data));
     
-  // initializing MAC module
-  reg rst_MAC, MAC_acc, MAC_sum;
-  mac _mac (.clk(clk), .rst(rst_MAC), .sum(MAC_sum), .acc(MAC_acc), .a(data_A), .b(data_B), .c(write_value_R));
-  
   // states
   parameter IDLE = 0, START = 2, LOAD_VAL = 3, MAC = 4, STORE = 5, DONE = 6;
-  //reg [2:0] state, next_state;
-  reg [2:0] next_state;
-
+  reg [2:0] next_state, state;
+  
   parameter total_elements = 2*2;
   // reg rst_i, rst_j, rst_k;
-  reg [2:0] i, j, k;
+  reg [31:0] i, j, k;
   // temporary counter to write values in Mem A and Mem B
-  reg [2:0] write_counter = 0;
+  reg [31:0] write_counter = 0;
   
+  wire slow_clk;
+  clk_div #(.DIV(1000)) oneHzclock (.clk(clk), .slow_clk(slow_clk));
   
+  // initializing MAC module
+  reg rst_MAC, MAC_acc, MAC_sum;
+  mac _mac (.clk(slow_clk), .rst(rst_MAC), .sum(MAC_sum), .acc(MAC_acc), .a(data_A), .b(data_B), .c(write_value_R));//, .temp(temp));
+  
+  initial begin
+	rst_MAC <= 1'b0;
+	MAC_acc <= 1'b0;
+	MAC_sum <= 1'b0;
+	state <= IDLE;
+  end
   always @ (posedge slow_clk or posedge rst) begin
     if (rst) state <= IDLE;
     else state <= next_state;
@@ -94,17 +86,17 @@ module TM_matrix_multiplication(input clk, rst, rx_data,
   always @ (*) begin
     next_state = state;
     case (state)
-      IDLE: if(complete_A && complete_B) next_state = START; // need to only start after A and B are loaded, make logic for this later
+      IDLE: if (written_completed_A && written_completed_B) next_state = START; // need to only start after A and B are loaded, make logic for this later
       
       START: next_state = LOAD_VAL;
       
       LOAD_VAL: begin
-        if (i >= 2) next_state = DONE;
+        if (i >= row) next_state = DONE;
         else next_state = MAC;
       end
       
       MAC: begin
-        if (k == 1) next_state = STORE;
+        if (k == column - 1) next_state = STORE;
         else next_state = LOAD_VAL;
       end
           
@@ -121,63 +113,63 @@ module TM_matrix_multiplication(input clk, rst, rx_data,
   
   // State outputs
   always @ (posedge slow_clk) begin // replace clk with *
-    rst_MAC <= 0;
-    MAC_acc <= 0;
-    write_R <= 0;
-    read_A <= 0;
-    read_B <= 0;
-    write_A <= 0;
-    write_B <= 0;
-    MAC_sum <= 0;
-	 read_R <= 0;
-
+    rst_MAC <= 1'b0;
+    MAC_acc <= 1'b0;
+    write_R <= 1'b0;
+    read_A <= 1'b0;
+    read_B <= 1'b0;
+    MAC_sum <= 1'b0;
+	 read_R_mat <= 1'b0;
+	 
     case (state)
       IDLE: begin
-          write_counter <= 0;
+          write_counter <= 1'b0;
+			 complete <= 1'b0;
       end
       
       START: begin
         i <= 0;
         j <= 0;
         k <= 0;
-        rst_MAC <= 1;
+        rst_MAC <= 1'b1;
       end
       
       LOAD_VAL: begin
-        read_address_A <= 2*i + k; //for flexibility replace '2' with variable
-        read_A <= 1;
+        read_address_A <= row*i + k; // getting index of value from mat A
+        read_A <= 1'b1;
         
-        read_address_B <= 2*k + j; //for flexibility replace '2' with variable
-        read_B <= 1;
-        MAC_sum <= 1;
+        read_address_B <= row*k + j; // getting index of value from mat B
+        read_B <= 1'b1;
+        MAC_sum <= 1'b1;
       end
       
       MAC: begin
         k <= k + 1;
-        if (k == 1)
-          MAC_acc <= 1;
+        if (k == column - 1)
+          MAC_acc <= 1'b1;
       end
       
       STORE: begin
-        write_address_R <= 2*i + j;
-        write_R <= 1;
-        k <= 0;
-        rst_MAC <= 1;
-        if (j == 1) begin
-          j <= 0;
+        write_address_R <= row*i + j;
+        write_R <= 1'b1;
+        k <= 3'b0;
+        rst_MAC <= 1'b1;
+        if (j == column - 1) begin
+          j <= 3'b0;
           i <= i + 1;
         end
         else j <= j + 1;
       end
       
       DONE: begin
-			read_R <= 1;
+		  read_R_mat <= 1'b1;
+        complete <= 1'b1;
       end
       
       default: begin
-        rst_MAC <= 0;
-	    MAC_acc <= 0;
-    	write_R <= 0;
+        rst_MAC <= 1'b0;
+	     MAC_acc <= 1'b0;
+		  write_R <= 1'b0;
       end
     endcase
   end

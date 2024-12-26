@@ -19,12 +19,21 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 module UART_to_MEM(
-input clk, rst, rx_data, read_A, read_address_A,
-output [7:0] data_A,
-output reg complete
+input clk, rst, rx_data, read_A, write_A_TX,
+input [31:0] read_address_A,
+output reg written_completed,
+//output reg [7:0] write_address_A,
+//output reg state,
+output [7:0] data_A
+//output reg [7:0] values_received_count
     );
   
+  reg [31:0] values_received_count = 0;
+  initial begin
+	written_completed <= 1'b0;
+  end
   parameter row = 2, column = 2;
+  parameter total_values = row*column;
   //===receiver===//
   wire bclk, bclk_x8;
   wire [9:0] temp_reg;
@@ -37,11 +46,11 @@ output reg complete
   //===memory===//
   // initializing memory A
   reg write_A; //, read_A;
-  reg [row*column + 1:0] write_address_A; //, read_address_A;
+//  reg [5:0] write_address_A; //, read_address_A;
   reg [7:0] write_value_A;
   // wire [7:0] data_A;
-  memory #(.row(2), .column(2)) matrix_A (.clk(clk), .rst(rst), .write(write_A), .read(read_A),
-                                          .write_address(write_address_A),
+  memory #(.row(row), .column(column)) matrix_A (.clk(clk), .rst(rst), .write(write_A && write_A_TX), .read(read_A),
+                                          .write_address(values_received_count),
                                           .read_address(read_address_A),
                                           .write_value(write_value_A),
                                           .data(data_A));
@@ -66,13 +75,11 @@ output reg complete
   
   //===FSM===//
   parameter IDLE = 0, RECEIVING = 1,
-				STORE = 2, END = 3;
+				STORE = 2, END = 3, RESET = 4;
 				
   //reg [2:0] values_received_count;
-  reg [2:0] state, next_state;
-  wire slow_clk;
-  clk_div oneHz(.clk(clk), .slow_clk(slow_clk));
-  always @ (posedge slow_clk or posedge rst) begin
+  reg [2:0] next_state, state;
+  always @ (posedge clk or posedge rst) begin
     if (rst) begin 
 		state <= IDLE;
 	 end
@@ -83,18 +90,18 @@ output reg complete
   always @ (*) begin
     next_state = state;
     case (state)
-      IDLE: if (rx_status == 1) next_state = RECEIVING;
+      IDLE: if (rx_status == 1 && write_A_TX) next_state = RECEIVING;
       
       RECEIVING: begin if (rx_status == 0) next_state = STORE; else next_state = RECEIVING; end
       // going to send when we receive all the 4 numbers, otherwise we go to IDLE to get the next input
-      STORE: begin if (values_received_count == row*column - 1) next_state = END; else next_state = IDLE; end
-      END: begin if (rst) next_state = IDLE; else next_state = END; end
+      STORE: begin if (values_received_count >= total_values - 1) next_state = END; else next_state = IDLE; end
+      END: begin if (rst) next_state = RESET; else next_state = END; end
+		RESET: next_state = IDLE;
       default: next_state = state;
     endcase
   end
   
   // values_received_count logic, before it was in the always block at line 102 but we seperate it to prevent undefined behaviour before.
-  reg [row*column + 1:0] values_received_count = 0;
   reg inc_vrc = 1'b0;
   reg rst_vrc = 1'b0;
   always @ (posedge clk or posedge rst or posedge rst_vrc) begin
@@ -105,33 +112,34 @@ output reg complete
   
   always @ (*) begin
 	 write_A = 1'b0;
-//	 display = 1'b0;
+	 written_completed = 1'b0;
 	 inc_vrc = 1'b0;
 	 rst_vrc = 1'b0;
 	 complete = 1'b0;
 	 
     case(state)
       IDLE: begin
-			write_A = 0;
+			write_A = 1'b0;
       end
       
       RECEIVING: begin
-    		write_A = 0;
+    		write_A = 1'b0;
       end
       
       STORE: begin
          write_A = 1'b1;
          write_value_A = temp_reg [8:1];
-         write_address_A = values_received_count;
+         //write_address_A = values_received_count - 1;
 			inc_vrc = 1'b1;
       end
       
       END: begin
-		   rst_vrc = 1'b1;
-			complete = 1'b1;
-			//display = 1'b1;
+			written_completed = 1'b1;
       end
       
+		RESET: begin
+			rst_vrc = 1'b1;
+		end
       default: write_A = 0;
     endcase
   end
