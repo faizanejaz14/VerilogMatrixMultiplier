@@ -97,6 +97,7 @@ output tx_data
 	reg eight_bit_counter = 1'b0;
 	reg inc_ebc = 1'b0;
 	always @ (posedge slow_clk) begin
+		//if (inc_ebc) eight_bit_counter <= 1'b0;
 		eight_bit_counter <= eight_bit_counter + 1'b1;
 	end
 	
