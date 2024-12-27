@@ -65,12 +65,12 @@ module TM_matrix_multiplication(input clk, rst, write_A_TX, write_B_TX, rx_data,
   // temporary counter to write values in Mem A and Mem B
   reg [31:0] write_counter = 0;
   
-  wire slow_clk;
-  clk_div #(.DIV(1000)) oneHzclock (.clk(clk), .slow_clk(slow_clk));
+  //wire slow_clk;
+  //clk_div #(.DIV(1000)) oneHzclock (.clk(clk), .slow_clk(slow_clk));
   
   // initializing MAC module
   reg rst_MAC, MAC_acc, MAC_sum;
-  mac _mac (.clk(slow_clk), .rst(rst_MAC), .sum(MAC_sum), .acc(MAC_acc), .a(data_A), .b(data_B), .c(write_value_R));//, .temp(temp));
+  mac _mac (.clk(clk), .rst(rst_MAC), .sum(MAC_sum), .acc(MAC_acc), .a(data_A), .b(data_B), .c(write_value_R));//, .temp(temp));
   
   initial begin
 	rst_MAC <= 1'b0;
@@ -79,7 +79,7 @@ module TM_matrix_multiplication(input clk, rst, write_A_TX, write_B_TX, rx_data,
 	state <= IDLE;
   end
   
-  always @ (posedge slow_clk or posedge rst) begin
+  always @ (posedge clk or posedge rst) begin
     if (rst) state <= IDLE;
     else state <= next_state;
   end
@@ -110,7 +110,7 @@ module TM_matrix_multiplication(input clk, rst, write_A_TX, write_B_TX, rx_data,
   end
   
   // State outputs
-  always @ (posedge slow_clk) begin // replace clk with *
+  always @ (posedge clk) begin // replace clk with *
     rst_MAC <= 1'b0;
     MAC_acc <= 1'b0;
     write_R <= 1'b0;

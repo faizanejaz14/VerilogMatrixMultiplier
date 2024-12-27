@@ -94,11 +94,11 @@ output tx_data
 			state <= next_state;
 	end
 	
-	reg eight_bit_counter = 1'b0;
+	reg eight_bit_counter = 1'b1;
 	reg inc_ebc = 1'b0;
 	always @ (posedge slow_clk) begin
 		//if (inc_ebc) eight_bit_counter <= 1'b0;
-		eight_bit_counter <= eight_bit_counter + 1'b1;
+		if (state == TRANSMIT_DATA) eight_bit_counter <= eight_bit_counter + 1'b1;
 	end
 	
 	assign data_R_chunk =  data_R[(eight_bit_counter*8)+:8];
@@ -142,7 +142,7 @@ output tx_data
 				inc_ebc = 1'b1;
 				if (!tx_status) begin
 					if (!eight_bit_counter) next_state = TRANSMIT_READY;
-					next_state = READ_DATA;
+					else next_state = READ_DATA;
 				end
 				else next_state = state;
 			end
