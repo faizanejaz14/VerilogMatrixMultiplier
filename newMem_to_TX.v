@@ -39,8 +39,8 @@
 /////////////////////////////////////// made by Faizan. Debugged by Zakria and Irtaza ///////////////////////////////////////////
 module newMEM_to_TX(
 input clk, rst, read_R_mat, write_R,
-input [31:0] write_address_R,
-input [15:0] write_value_R,
+input [31:0] write_address_R0, write_address_R1, write_address_R2, write_address_R3, write_address_R4, write_address_R5, write_address_R6, write_address_R7, write_address_R8, write_address_R9,
+input [15:0] write_value_R0, write_value_R1, write_value_R2, write_value_R3, write_value_R4, write_value_R5, write_value_R6, write_value_R7, write_value_R8, write_value_R9,
 output tx_data
 //output [7:0] data_R,
 //output reg [2:0] values_sent_count
@@ -72,10 +72,16 @@ output tx_data
   reg [31:0] values_sent_count;
   //reg [7:0] write_value_R;
   memory #(.row(row), .column(column), .size(16)) matrix_R (.clk(clk), .rst(rst), .write(write_R), .read(read_R),
-                                          .write_address(write_address_R),
-                                          .read_address(values_sent_count),
-                                          .write_value(write_value_R),
-                                          .data(data_R));
+                                          .write_address0(write_address_R0), .write_address1(write_address_R1), .write_address2(write_address_R2),
+														.write_address3(write_address_R3), .write_address4(write_address_R4), .write_address5(write_address_R5),
+														.write_address6(write_address_R6), .write_address7(write_address_R7), .write_address8(write_address_R8),
+														.write_address9(write_address_R9),
+                                          .read_address0(values_sent_count),
+                                          .write_value0(write_value_R0), .write_value1(write_value_R1), .write_value2(write_value_R2),
+														.write_value3(write_value_R3), .write_value4(write_value_R4), .write_value5(write_value_R5),
+														.write_value6(write_value_R6), .write_value7(write_value_R7), .write_value8(write_value_R8),
+														.write_value9(write_value_R9),
+                                          .data0(data_R));
 	
 
 	//===FSM===//

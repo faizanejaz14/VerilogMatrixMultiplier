@@ -20,11 +20,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 module UART_to_MEM(
 input clk, rst, rx_data, read_A, write_A_TX,
-input [31:0] read_address_A,
+input [31:0] read_address_A0, read_address_A1, read_address_A2, read_address_A3, read_address_A4, read_address_A5, read_address_A6, read_address_A7, read_address_A8, read_address_A9,
 output reg written_completed,
 //output reg [7:0] write_address_A,
 //output reg state,
-output [7:0] data_A
+output [7:0] data_A0, data_A1, data_A2, data_A3, data_A4, data_A5, data_A6, data_A7, data_A8, data_A9
 //output reg [7:0] values_received_count
     );
   
@@ -50,10 +50,15 @@ output [7:0] data_A
   reg [7:0] write_value_A;
   // wire [7:0] data_A;
   memory #(.row(row), .column(column)) matrix_A (.clk(clk), .rst(rst), .write(write_A && write_A_TX), .read(read_A),
-                                          .write_address(values_received_count),
-                                          .read_address(read_address_A),
-                                          .write_value(write_value_A),
-                                          .data(data_A));
+    .write_address0(values_received_count),
+    .read_address0(read_address_A0), .read_address1(read_address_A1), .read_address2(read_address_A2), 
+    .read_address3(read_address_A3), .read_address4(read_address_A4), .read_address5(read_address_A5), 
+    .read_address6(read_address_A6), .read_address7(read_address_A7), .read_address8(read_address_A8), 
+    .read_address9(read_address_A9),
+    .write_value0(write_value_A),
+    .data0(data_A0), .data1(data_A1), .data2(data_A2), .data3(data_A3), .data4(data_A4),
+    .data5(data_A5), .data6(data_A6), .data7(data_A7), .data8(data_A8), .data9(data_A9));
+
   
   //=== 1HZ Clock by clk divider ===//
   // wire slow_clk;
