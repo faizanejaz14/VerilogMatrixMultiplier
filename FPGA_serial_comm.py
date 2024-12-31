@@ -2,6 +2,7 @@ import serial
 import time
 import numpy as np
 
+# Defining a function which takes in generates random nxn matrix and helps us verify our FPGA output with the actual matrix output
 def complete_uart(mat_size):
     ser = serial.Serial('COM4', 9600)
 
