@@ -3,9 +3,9 @@ import time
 import numpy as np
 
 def complete_uart(mat_size):
-    ser = serial.Serial('COM3', 9600)
+    ser = serial.Serial('COM4', 9600)
 
-    matrixA = np.random.randint(10, size=mat_size**2)
+    matrixA = np.random.randint(100, size=mat_size**2)
     print(matrixA)
 
     for num in matrixA:
@@ -14,7 +14,7 @@ def complete_uart(mat_size):
         ser.flush()
 
     x = input("Waiting for switch to be flipped!!")
-    matrixB = np.random.randint(10, size=mat_size**2)
+    matrixB = np.random.randint(100, size=mat_size**2)
     print(matrixB)
                
     for num1 in matrixB:
@@ -26,8 +26,13 @@ def complete_uart(mat_size):
     FPGA_mat = []
     while counter < mat_size**2:
         a = ser.read()
-        FPGA_mat.append(int.from_bytes(a))
+        #print(a)
+        b = ser.read()
+        FPGA_mat.append(int.from_bytes(b + a))
         counter += 1
+        #for some reason python giving problem after commenting those two print lines below
+        print(b, a)
+        print(len(FPGA_mat))
     ser.close()
 
     matrixA = np.array(matrixA).reshape(mat_size, mat_size)

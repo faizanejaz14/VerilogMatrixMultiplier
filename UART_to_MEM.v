@@ -20,11 +20,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 module UART_to_MEM(
 input clk, rst, rx_data, read_A, write_A_TX,
-input [31:0] read_address_A,
+input [7:0] read_address_A0, read_address_A1, read_address_A2, 
 output reg written_completed,
 //output reg [7:0] write_address_A,
 //output reg state,
-output [7:0] data_A
+output [7:0] data_A0, data_A1, data_A2
 //output reg [7:0] values_received_count
     );
   
@@ -50,10 +50,10 @@ output [7:0] data_A
   reg [7:0] write_value_A;
   // wire [7:0] data_A;
   memory #(.row(row), .column(column)) matrix_A (.clk(clk), .rst(rst), .write(write_A && write_A_TX), .read(read_A),
-                                          .write_address(values_received_count),
-                                          .read_address(read_address_A),
-                                          .write_value(write_value_A),
-                                          .data(data_A));
+                                          .write_address0(values_received_count), .write_address1(-1), .write_address2(-1),
+                                          .read_address0(read_address_A0), .read_address1(read_address_A1), .read_address2(read_address_A2),
+                                          .write_value0(write_value_A),
+                                          .data0(data_A0), .data1(data_A1), .data2(data_A2));
   
   //=== 1HZ Clock by clk divider ===//
   // wire slow_clk;
@@ -105,9 +105,9 @@ output [7:0] data_A
   reg inc_vrc = 1'b0;
   reg rst_vrc = 1'b0;
   always @ (posedge clk or posedge rst or posedge rst_vrc) begin
-	if (rst | rst_vrc) values_received_count <= 0;
-	else if (inc_vrc) values_received_count <= values_received_count + 1;
-	else values_received_count <= values_received_count;
+		if (rst | rst_vrc) values_received_count <= 0;
+		else if (inc_vrc) values_received_count <= values_received_count + 1;
+		else values_received_count <= values_received_count;
   end
   
   always @ (*) begin
